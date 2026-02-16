@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OA Positive Replies</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-primary: #121218;
+      --bg-column: #1a1a24;
+      --bg-card: #22222e;
+      --bg-card-hover: #2a2a38;
+      --bg-input: #1a1a24;
+      --bg-row-hover: #1e1e2c;
+      --border: #2a2a38;
+      --border-light: #333346;
+      --text-primary: #e8e8ed;
+      --text-secondary: #8888a0;
+      --text-muted: #5a5a72;
+      --accent-blue: #2563eb;
+      --accent-blue-hover: #1d4ed8;
+      --status-interested: #2563eb;
+      --status-interested-bg: #1e3a5f;
+      --status-won: #22c55e;
+      --status-won-bg: #14532d;
+      --status-lost: #ef4444;
+      --status-lost-bg: #7f1d1d;
+      --radius: 8px;
+      --radius-sm: 4px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── Login Bar ─── */
+    .login-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 24px;
+      background: var(--bg-column);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .login-bar input {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      width: 200px;
+    }
+    .login-bar input:focus { outline: none; border-color: var(--accent-blue); }
+    .login-bar .user-info { color: var(--text-secondary); }
+    .login-bar .user-info strong { color: var(--text-primary); }
+
+    /* ─── Nav ─── */
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 24px;
+      background: var(--bg-column);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .nav a {
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .nav a:hover { color: var(--text-secondary); }
+    .nav a.active { color: var(--text-primary); border-bottom-color: var(--accent-blue); }
+
+    /* ─── Header ─── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header-stats { display: flex; gap: 16px; align-items: center; }
+    .stat {
+      text-align: center;
+      padding: 4px 12px;
+    }
+    .stat-value { font-size: 20px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-interested .stat-value { color: var(--status-interested); }
+    .stat-won .stat-value { color: var(--status-won); }
+    .stat-lost .stat-value { color: var(--status-lost); }
+
+    .btn {
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: var(--accent-blue); color: white; }
+    .btn-primary:hover { background: var(--accent-blue-hover); }
+    .btn-secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-card-hover); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+    /* ─── Filters ─── */
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 7px 12px 7px 32px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      width: 260px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%235a5a72' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 10px center;
+    }
+    .search-box:focus { outline: none; border-color: var(--accent-blue); }
+    .search-box::placeholder { color: var(--text-muted); }
+
+    .filter-divider { width: 1px; height: 24px; background: var(--border); margin: 0 2px; }
+
+    .filter-pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .filter-pill:hover { border-color: var(--text-muted); color: var(--text-primary); }
+    .filter-pill.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+
+    .filter-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 7px 12px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .filter-select option { background: var(--bg-card); }
+
+    /* ─── Table ─── */
+    .table-container {
+      flex: 1;
+      overflow: auto;
+      padding: 0 24px 24px;
+    }
+    .table-container::-webkit-scrollbar { width: 6px; height: 6px; }
+    .table-container::-webkit-scrollbar-track { background: transparent; }
+    .table-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead { position: sticky; top: 0; z-index: 10; }
+    th {
+      background: var(--bg-column);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    th:hover { color: var(--text-secondary); }
+    th .sort-arrow { margin-left: 4px; font-size: 10px; }
+    th .sort-arrow.asc::after { content: ' \u25B2'; }
+    th .sort-arrow.desc::after { content: ' \u25BC'; }
+
+    td {
+      padding: 10px 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      max-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tr { cursor: pointer; transition: background 0.1s; }
+    tr:hover { background: var(--bg-row-hover); }
+    tr.selected { background: var(--bg-card); }
+
+    .col-name { width: 160px; font-weight: 500; }
+    .col-company { width: 150px; }
+    .col-title { width: 150px; color: var(--text-secondary); }
+    .col-status { width: 100px; }
+    .col-reply { color: var(--text-secondary); }
+    .col-date { width: 100px; color: var(--text-muted); white-space: nowrap; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+    .status-interested { background: var(--status-interested-bg); color: #93c5fd; }
+    .status-won { background: var(--status-won-bg); color: #86efac; }
+    .status-lost { background: var(--status-lost-bg); color: #fca5a5; }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .pagination-btns { display: flex; gap: 6px; }
+
+    /* ─── Slide-out Panel ─── */
+    .panel-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 50;
+    }
+    .panel-overlay.open { display: block; }
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: -460px;
+      width: 460px;
+      height: 100vh;
+      background: var(--bg-column);
+      border-left: 1px solid var(--border);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.25s ease;
+    }
+    .detail-panel.open { right: 0; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .panel-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .panel-close:hover { color: var(--text-primary); background: var(--bg-card); }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .panel-section { margin-bottom: 20px; }
+    .panel-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .panel-name { font-size: 18px; font-weight: 600; margin-bottom: 2px; }
+    .panel-subtitle { font-size: 14px; color: var(--text-secondary); }
+
+    .panel-links { display: flex; flex-direction: column; gap: 6px; }
+    .panel-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--accent-blue);
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+    }
+    .panel-link:hover { background: var(--bg-card-hover); }
+    .panel-link-label { color: var(--text-muted); min-width: 55px; }
+
+    .panel-reply {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      max-height: 240px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .panel-field { margin-bottom: 12px; }
+    .panel-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .panel-field select,
+    .panel-field textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .panel-field textarea { resize: vertical; min-height: 60px; }
+    .panel-field select:focus,
+    .panel-field textarea:focus { outline: none; border-color: var(--accent-blue); }
+
+    .panel-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+    .panel-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ─── Toast ─── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      z-index: 200;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: #991b1b; }
+
+    /* ─── Empty State ─── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Bar -->
+  <div class="login-bar" id="loginBar">
+    <span class="user-info" id="loginStatus">Read-only mode.</span>
+    <input type="email" id="loginEmail" placeholder="Email" />
+    <input type="password" id="loginPassword" placeholder="Password" />
+    <button class="btn btn-primary btn-sm" onclick="handleLogin()">Sign In</button>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav">
+    <a href="index.html">Sprint Board</a>
+    <a href="replies.html" class="active">Positive Replies</a>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>OA Positive Replies</h1>
+    <div class="header-stats">
+      <div class="stat">
+        <div class="stat-value" id="statTotal">-</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat stat-interested">
+        <div class="stat-value" id="statInterested">-</div>
+        <div class="stat-label">Interested</div>
+      </div>
+      <div class="stat stat-won">
+        <div class="stat-value" id="statWon">-</div>
+        <div class="stat-label">Won</div>
+      </div>
+      <div class="stat stat-lost">
+        <div class="stat-value" id="statLost">-</div>
+        <div class="stat-label">Lost</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <input type="text" class="search-box" id="searchBox" placeholder="Search name, company, email..." />
+    <div class="filter-divider"></div>
+    <button class="filter-pill active" data-filter="status" data-value="all">All</button>
+    <button class="filter-pill" data-filter="status" data-value="interested">Interested</button>
+    <button class="filter-pill" data-filter="status" data-value="won">Won</button>
+    <button class="filter-pill" data-filter="status" data-value="lost">Lost</button>
+    <div class="filter-divider"></div>
+    <select class="filter-select" id="clientFilter">
+      <option value="all">All Clients</option>
+      <option value="ebdd4f74-a101-43ff-8951-d129852975f7">Outbound Acceleration</option>
+      <option value="bd94a2c0-1a3f-495e-9f4d-d1b617654df3">Autnhive</option>
+      <option value="7a0d6918-664c-4c4d-bbe2-ebd3caabb7da">Fixation</option>
+    </select>
+    <select class="filter-select" id="dateFilter">
+      <option value="all">All Time</option>
+      <option value="7">Last 7 Days</option>
+      <option value="30">Last 30 Days</option>
+      <option value="90">Last 90 Days</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-name" data-sort="full_name">Name <span class="sort-arrow" id="sort-full_name"></span></th>
+          <th class="col-company" data-sort="company_name">Company <span class="sort-arrow" id="sort-company_name"></span></th>
+          <th class="col-title" data-sort="title">Title <span class="sort-arrow" id="sort-title"></span></th>
+          <th class="col-status" data-sort="lead_status">Status <span class="sort-arrow" id="sort-lead_status"></span></th>
+          <th class="col-reply">Reply Preview</th>
+          <th class="col-date" data-sort="created_at">Date <span class="sort-arrow" id="sort-created_at" class="desc"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="pagination" id="pagination">
+      <span id="pageInfo"></span>
+      <div class="pagination-btns">
+        <button class="btn btn-secondary btn-sm" id="prevBtn" onclick="prevPage()">Previous</button>
+        <button class="btn btn-secondary btn-sm" id="nextBtn" onclick="nextPage()">Next</button>
+      </div>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">No replies match your filters.</div>
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="panel-overlay" id="panelOverlay"></div>
+  <div class="detail-panel" id="detailPanel">
+    <div class="panel-header">
+      <span style="font-size:14px;font-weight:600;">Reply Details</span>
+      <button class="panel-close" onclick="closePanel()">&times;</button>
+    </div>
+    <div class="panel-body">
+      <div class="panel-section">
+        <div class="panel-name" id="panelName"></div>
+        <div class="panel-subtitle" id="panelSubtitle"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Contact</div>
+        <div class="panel-links">
+          <a class="panel-link" id="panelEmail" href="#"><span class="panel-link-label">Email</span><span id="panelEmailText"></span></a>
+          <a class="panel-link" id="panelPhone" href="#" style="display:none"><span class="panel-link-label">Phone</span><span id="panelPhoneText"></span></a>
+          <a class="panel-link" id="panelLinkedIn" href="#" target="_blank" style="display:none"><span class="panel-link-label">LinkedIn</span><span>View Profile</span></a>
+        </div>
+      </div>
+
+      <div class="panel-section" id="panelLinksSection">
+        <div class="panel-section-title">Links</div>
+        <div class="panel-links">
+          <a class="panel-link" id="panelThreadLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">Thread</span><span>EmailBison Inbox</span></a>
+          <a class="panel-link" id="panelCRMLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">CRM</span><span>Close.com</span></a>
+          <a class="panel-link" id="panelWebsite" href="#" target="_blank" style="display:none"><span class="panel-link-label">Website</span><span id="panelWebsiteText"></span></a>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Reply</div>
+        <div class="panel-reply" id="panelReply"></div>
+        <div class="panel-meta" id="panelDate"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-field">
+          <label>Status</label>
+          <select id="panelStatus">
+            <option value="interested">Interested</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+        <div class="panel-field">
+          <label>OA Notes</label>
+          <textarea id="panelOANotes" rows="3" placeholder="Internal notes..."></textarea>
+        </div>
+        <div class="panel-field">
+          <label>Client Notes</label>
+          <textarea id="panelClientNotes" rows="3" placeholder="Client-visible notes..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="panel-footer">
+      <button class="btn btn-secondary" onclick="closePanel()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReply()">Save</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+<script>
+  // ─── Config ───
+  const SUPABASE_URL = 'https://qdweppsmwzfhafpeiqur.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkd2VwcHNtd3pmaGFmcGVpcXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzAxNzEsImV4cCI6MjA4NjE0NjE3MX0.tc5k4en0hh5QAgPfKToQ00sUsEu79t5bBFV_vhcoFp0';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ─── State ───
+  let allReplies = [];
+  let filtered = [];
+  let currentPage = 0;
+  const PAGE_SIZE = 50;
+  let sortCol = 'created_at';
+  let sortDir = 'desc';
+  let statusFilter = 'all';
+  let searchQuery = '';
+  let clientFilter = 'all';
+  let dateFilter = 'all';
+  let selectedId = null;
+  let isAuthenticated = false;
+
+  // ─── Init ───
+  async function init() {
+    await checkSession();
+    await loadReplies();
+    initEventListeners();
+  }
+
+  // ─── Auth ───
+  async function checkSession() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) setLoggedIn(session.user.email);
+  }
+
+  async function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) return;
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { showToast('Login failed: ' + error.message, true); return; }
+    setLoggedIn(data.user.email);
+    await loadReplies();
+  }
+
+  function setLoggedIn(email) {
+    isAuthenticated = true;
+    const name = email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
+    document.getElementById('loginStatus').innerHTML = `Signed in as <strong>${name}</strong>`;
+    document.getElementById('loginEmail').style.display = 'none';
+    document.getElementById('loginPassword').style.display = 'none';
+    const btn = document.querySelector('#loginBar .btn');
+    btn.textContent = 'Sign Out';
+    btn.onclick = handleLogout;
+  }
+
+  async function handleLogout() {
+    await sb.auth.signOut();
+    location.reload();
+  }
+
+  // ─── Data ───
+  async function loadReplies() {
+    const { data, error } = await sb
+      .from('positive_replies')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) { showToast('Failed to load: ' + error.message, true); return; }
+    allReplies = data || [];
+    applyFilters();
+  }
+
+  // ─── Filtering ───
+  function applyFilters() {
+    const now = new Date();
+    filtered = allReplies.filter(r => {
+      if (statusFilter !== 'all' && r.lead_status !== statusFilter) return false;
+      if (clientFilter !== 'all' && r.client_id !== clientFilter) return false;
+      if (dateFilter !== 'all') {
+        const days = parseInt(dateFilter);
+        const cutoff = new Date(now.getTime() - days * 86400000);
+        if (new Date(r.created_at) < cutoff) return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const searchable = [r.full_name, r.company_name, r.email, r.title, r.reply_text]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!searchable.includes(q)) return false;
+      }
+      return true;
+    });
+    sortFiltered();
+    currentPage = 0;
+    renderTable();
+    renderStats();
+  }
+
+  function sortFiltered() {
+    filtered.sort((a, b) => {
+      let va = a[sortCol] || '';
+      let vb = b[sortCol] || '';
+      if (sortCol === 'created_at') {
+        va = new Date(va || 0).getTime();
+        vb = new Date(vb || 0).getTime();
+      } else {
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  // ─── Render ───
+  function renderTable() {
+    const start = currentPage * PAGE_SIZE;
+    const page = filtered.slice(start, start + PAGE_SIZE);
+    const tbody = document.getElementById('tableBody');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('pagination').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('pagination').style.display = 'flex';
+
+    tbody.innerHTML = page.map(r => `
+      <tr onclick="openPanel('${r.id}')" class="${r.id === selectedId ? 'selected' : ''}">
+        <td class="col-name">${esc(r.full_name || '-')}</td>
+        <td class="col-company">${esc(r.company_name || '-')}</td>
+        <td class="col-title">${esc(r.title || '-')}</td>
+        <td class="col-status"><span class="status-badge status-${r.lead_status}">${r.lead_status || '-'}</span></td>
+        <td class="col-reply">${esc(truncate(r.reply_text, 80))}</td>
+        <td class="col-date">${fmtDate(r.created_at)}</td>
+      </tr>
+    `).join('');
+
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    document.getElementById('pageInfo').textContent =
+      `${start + 1}\u2013${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length}`;
+    document.getElementById('prevBtn').disabled = currentPage === 0;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages - 1;
+
+    // Update sort arrows
+    document.querySelectorAll('.sort-arrow').forEach(el => el.className = 'sort-arrow');
+    const arrow = document.getElementById('sort-' + sortCol);
+    if (arrow) arrow.className = 'sort-arrow ' + sortDir;
+  }
+
+  function renderStats() {
+    const total = filtered.length;
+    const interested = filtered.filter(r => r.lead_status === 'interested').length;
+    const won = filtered.filter(r => r.lead_status === 'won').length;
+    const lost = filtered.filter(r => r.lead_status === 'lost').length;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statInterested').textContent = interested;
+    document.getElementById('statWon').textContent = won;
+    document.getElementById('statLost').textContent = lost;
+  }
+
+  // ─── Panel ───
+  function openPanel(id) {
+    const reply = allReplies.find(r => r.id === id);
+    if (!reply) return;
+    selectedId = id;
+
+    document.getElementById('panelName').textContent = reply.full_name || 'Unknown';
+    document.getElementById('panelSubtitle').textContent =
+      [reply.title, reply.company_name].filter(Boolean).join(' at ');
+
+    // Contact links
+    const emailEl = document.getElementById('panelEmail');
+    const emailText = document.getElementById('panelEmailText');
+    emailText.textContent = reply.email || '-';
+    emailEl.href = reply.email ? 'mailto:' + reply.email : '#';
+
+    const phoneEl = document.getElementById('panelPhone');
+    const phoneText = document.getElementById('panelPhoneText');
+    if (reply.phone) {
+      phoneText.textContent = reply.phone;
+      phoneEl.href = 'tel:' + reply.phone;
+      phoneEl.style.display = 'flex';
+    } else { phoneEl.style.display = 'none'; }
+
+    const liEl = document.getElementById('panelLinkedIn');
+    if (reply.linkedin_url) {
+      liEl.href = reply.linkedin_url;
+      liEl.style.display = 'flex';
+    } else { liEl.style.display = 'none'; }
+
+    // External links
+    const threadEl = document.getElementById('panelThreadLink');
+    if (reply.email_thread_link) {
+      threadEl.href = reply.email_thread_link;
+      threadEl.style.display = 'flex';
+    } else { threadEl.style.display = 'none'; }
+
+    const crmEl = document.getElementById('panelCRMLink');
+    if (reply.close_crm_link) {
+      crmEl.href = reply.close_crm_link;
+      crmEl.style.display = 'flex';
+    } else { crmEl.style.display = 'none'; }
+
+    const webEl = document.getElementById('panelWebsite');
+    const webText = document.getElementById('panelWebsiteText');
+    if (reply.company_website) {
+      webText.textContent = reply.company_website;
+      webEl.href = reply.company_website.startsWith('http') ? reply.company_website : 'https://' + reply.company_website;
+      webEl.style.display = 'flex';
+    } else { webEl.style.display = 'none'; }
+
+    // Reply text
+    document.getElementById('panelReply').textContent = reply.reply_text || '(no reply text)';
+    document.getElementById('panelDate').textContent = reply.created_at
+      ? 'Received ' + new Date(reply.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : '';
+
+    // Editable fields
+    document.getElementById('panelStatus').value = reply.lead_status || 'interested';
+    document.getElementById('panelOANotes').value = reply.oa_notes || '';
+    document.getElementById('panelClientNotes').value = reply.client_notes || '';
+
+    document.getElementById('panelOverlay').classList.add('open');
+    document.getElementById('detailPanel').classList.add('open');
+    renderTable(); // highlight selected row
+  }
+
+  function closePanel() {
+    selectedId = null;
+    document.getElementById('panelOverlay').classList.remove('open');
+    document.getElementById('detailPanel').classList.remove('open');
+    renderTable();
+  }
+
+  async function saveReply() {
+    if (!isAuthenticated) { showToast('Sign in to save', true); return; }
+    if (!selectedId) return;
+
+    const payload = {
+      lead_status: document.getElementById('panelStatus').value,
+      oa_notes: document.getElementById('panelOANotes').value.trim() || null,
+      client_notes: document.getElementById('panelClientNotes').value.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await sb.from('positive_replies').update(payload).eq('id', selectedId);
+    if (error) { showToast('Save failed: ' + error.message, true); return; }
+
+    // Update local state
+    const reply = allReplies.find(r => r.id === selectedId);
+    if (reply) Object.assign(reply, payload);
+
+    showToast('Saved');
+    applyFilters();
+  }
+
+  // ─── Pagination ───
+  function nextPage() {
+    if ((currentPage + 1) * PAGE_SIZE < filtered.length) {
+      currentPage++;
+      renderTable();
+      document.querySelector('.table-container').scrollTop = 0;
+    }
+  }
+  function prevPage() {
+    if (currentPage > 0) {
+      currentPage--;
+      renderTable();
+      document.querySelector('.table-container').scrollTop = 0;
+    }
+  }
+
+  // ─── Event Listeners ───
+  function initEventListeners() {
+    // Search
+    let debounce;
+    document.getElementById('searchBox').addEventListener('input', (e) => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        searchQuery = e.target.value.trim();
+        applyFilters();
+      }, 250);
+    });
+
+    // Status pills
+    document.querySelectorAll('.filter-pill[data-filter="status"]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill[data-filter="status"]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        statusFilter = pill.dataset.value;
+        applyFilters();
+      });
+    });
+
+    // Client dropdown
+    document.getElementById('clientFilter').addEventListener('change', (e) => {
+      clientFilter = e.target.value;
+      applyFilters();
+    });
+
+    // Date dropdown
+    document.getElementById('dateFilter').addEventListener('change', (e) => {
+      dateFilter = e.target.value;
+      applyFilters();
+    });
+
+    // Column sorting
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sort;
+        if (sortCol === col) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortCol = col;
+          sortDir = col === 'created_at' ? 'desc' : 'asc';
+        }
+        sortFiltered();
+        renderTable();
+      });
+    });
+
+    // Panel overlay click to close
+    document.getElementById('panelOverlay').addEventListener('click', closePanel);
+
+    // Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePanel();
+    });
+  }
+
+  // ─── Helpers ───
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+  function truncate(s, len) {
+    if (!s) return '-';
+    // Strip HTML-ish content and collapse whitespace
+    const clean = s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return clean.length > len ? clean.substring(0, len) + '\u2026' : clean;
+  }
+  function fmtDate(d) {
+    if (!d) return '-';
+    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 2500);
+  }
+
+  // ─── Go ───
+  init();
+</script>
+</body>
+</html>

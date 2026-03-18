@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OA Positive Replies</title>
+  <title>OA List Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -20,12 +20,14 @@
       --text-muted: #5a5a72;
       --accent-blue: #2563eb;
       --accent-blue-hover: #1d4ed8;
-      --status-interested: #2563eb;
-      --status-interested-bg: #1e3a5f;
-      --status-won: #22c55e;
-      --status-won-bg: #14532d;
-      --status-lost: #ef4444;
-      --status-lost-bg: #7f1d1d;
+      --status-green: #22c55e;
+      --status-green-bg: #14532d;
+      --status-yellow: #eab308;
+      --status-yellow-bg: #713f12;
+      --status-red: #ef4444;
+      --status-red-bg: #7f1d1d;
+      --status-gray: #6b7280;
+      --status-gray-bg: #374151;
       --radius: 8px;
       --radius-sm: 4px;
     }
@@ -104,9 +106,8 @@
     }
     .stat-value { font-size: 20px; font-weight: 700; }
     .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-interested .stat-value { color: var(--status-interested); }
-    .stat-won .stat-value { color: var(--status-won); }
-    .stat-lost .stat-value { color: var(--status-lost); }
+    .stat-blue .stat-value { color: var(--accent-blue); }
+    .stat-green .stat-value { color: var(--status-green); }
 
     .btn {
       padding: 8px 18px;
@@ -219,14 +220,19 @@
     tr:hover { background: var(--bg-row-hover); }
     tr.selected { background: var(--bg-card); }
 
-    .col-name { width: 160px; font-weight: 500; }
-    .col-company { width: 150px; }
-    .col-title { width: 150px; color: var(--text-secondary); }
-    .col-status { width: 100px; }
-    .col-reply { color: var(--text-secondary); }
-    .col-date { width: 100px; color: var(--text-muted); white-space: nowrap; }
+    .col-client { width: 120px; font-weight: 500; }
+    .col-segment { width: 160px; }
+    .col-persona { width: 100px; color: var(--text-secondary); }
+    .col-contacts { width: 90px; text-align: right; }
+    .col-ineb { width: 80px; text-align: right; }
+    .col-coverage { width: 90px; }
+    .col-source { width: 70px; }
+    .col-clay { width: 55px; text-align: center; }
+    .col-campaign { width: 160px; color: var(--text-secondary); }
+    .col-status { width: 80px; }
+    .col-updated { width: 90px; color: var(--text-muted); }
 
-    .status-badge {
+    .badge {
       display: inline-block;
       padding: 3px 10px;
       border-radius: 12px;
@@ -234,9 +240,14 @@
       font-weight: 700;
       text-transform: capitalize;
     }
-    .status-interested { background: var(--status-interested-bg); color: #93c5fd; }
-    .status-won { background: var(--status-won-bg); color: #86efac; }
-    .status-lost { background: var(--status-lost-bg); color: #fca5a5; }
+    .badge-green { background: var(--status-green-bg); color: #86efac; }
+    .badge-yellow { background: var(--status-yellow-bg); color: #fde047; }
+    .badge-red { background: var(--status-red-bg); color: #fca5a5; }
+    .badge-gray { background: var(--status-gray-bg); color: #d1d5db; }
+    .badge-blue { background: #1e3a5f; color: #93c5fd; }
+
+    .check { color: var(--status-green); }
+    .dash { color: var(--text-muted); }
 
     .pagination {
       display: flex;
@@ -325,17 +336,37 @@
       background: var(--bg-card);
     }
     .panel-link:hover { background: var(--bg-card-hover); }
-    .panel-link-label { color: var(--text-muted); min-width: 55px; }
+    .panel-link-label { color: var(--text-muted); min-width: 70px; }
 
-    .panel-reply {
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .panel-stat {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .panel-stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .panel-stat-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .panel-notes {
       background: var(--bg-card);
       border-radius: var(--radius);
       padding: 14px;
       font-size: 13px;
       line-height: 1.6;
       color: var(--text-secondary);
-      max-height: 240px;
-      overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -351,7 +382,8 @@
       margin-bottom: 4px;
     }
     .panel-field select,
-    .panel-field textarea {
+    .panel-field textarea,
+    .panel-field input {
       width: 100%;
       background: var(--bg-input);
       border: 1px solid var(--border);
@@ -363,7 +395,8 @@
     }
     .panel-field textarea { resize: vertical; min-height: 60px; }
     .panel-field select:focus,
-    .panel-field textarea:focus { outline: none; border-color: var(--accent-blue); }
+    .panel-field textarea:focus,
+    .panel-field input:focus { outline: none; border-color: var(--accent-blue); }
 
     .panel-footer {
       padding: 16px 24px;
@@ -372,11 +405,6 @@
       gap: 10px;
       justify-content: flex-end;
       flex-shrink: 0;
-    }
-    .panel-meta {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 4px;
     }
 
     /* ─── Toast ─── */
@@ -420,53 +448,54 @@
   <!-- Nav -->
   <div class="nav">
     <a href="index.html">Sprint Board</a>
-    <a href="replies.html" class="active">Positive Replies</a>
-    <a href="lists.html">List Tracker</a>
+    <a href="replies.html">Positive Replies</a>
+    <a href="lists.html" class="active">List Tracker</a>
   </div>
 
   <!-- Header -->
   <div class="header">
-    <h1>OA Positive Replies</h1>
+    <h1>OA List Tracker</h1>
     <div class="header-stats">
+      <div class="stat stat-blue">
+        <div class="stat-value" id="statSegments">-</div>
+        <div class="stat-label">Segments</div>
+      </div>
       <div class="stat">
-        <div class="stat-value" id="statTotal">-</div>
-        <div class="stat-label">Total</div>
+        <div class="stat-value" id="statContacts">-</div>
+        <div class="stat-label">Total Contacts</div>
       </div>
-      <div class="stat stat-interested">
-        <div class="stat-value" id="statInterested">-</div>
-        <div class="stat-label">Interested</div>
+      <div class="stat stat-green">
+        <div class="stat-value" id="statInEB">-</div>
+        <div class="stat-label">In EB</div>
       </div>
-      <div class="stat stat-won">
-        <div class="stat-value" id="statWon">-</div>
-        <div class="stat-label">Won</div>
-      </div>
-      <div class="stat stat-lost">
-        <div class="stat-value" id="statLost">-</div>
-        <div class="stat-label">Lost</div>
+      <div class="stat">
+        <div class="stat-value" id="statClients">-</div>
+        <div class="stat-label">Clients</div>
       </div>
     </div>
   </div>
 
   <!-- Filters -->
   <div class="filters">
-    <input type="text" class="search-box" id="searchBox" placeholder="Search name, company, email..." />
-    <div class="filter-divider"></div>
-    <button class="filter-pill active" data-filter="status" data-value="all">All</button>
-    <button class="filter-pill" data-filter="status" data-value="interested">Interested</button>
-    <button class="filter-pill" data-filter="status" data-value="won">Won</button>
-    <button class="filter-pill" data-filter="status" data-value="lost">Lost</button>
+    <input type="text" class="search-box" id="searchBox" placeholder="Search segment, persona, campaign..." />
     <div class="filter-divider"></div>
     <select class="filter-select" id="clientFilter">
       <option value="all">All Clients</option>
-      <option value="ebdd4f74-a101-43ff-8951-d129852975f7">Outbound Acceleration</option>
-      <option value="bd94a2c0-1a3f-495e-9f4d-d1b617654df3">Autnhive</option>
-      <option value="7a0d6918-664c-4c4d-bbe2-ebd3caabb7da">Fixation</option>
     </select>
-    <select class="filter-select" id="dateFilter">
-      <option value="all">All Time</option>
-      <option value="7">Last 7 Days</option>
-      <option value="30">Last 30 Days</option>
-      <option value="90">Last 90 Days</option>
+    <div class="filter-divider"></div>
+    <button class="filter-pill active" data-filter="source" data-value="all">All</button>
+    <button class="filter-pill" data-filter="source" data-value="aiark">AIArk</button>
+    <button class="filter-pill" data-filter="source" data-value="apollo">Apollo</button>
+    <button class="filter-pill" data-filter="source" data-value="clay">Clay</button>
+    <button class="filter-pill" data-filter="source" data-value="manual">Manual</button>
+    <div class="filter-divider"></div>
+    <select class="filter-select" id="statusFilter">
+      <option value="all">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="enriching">Enriching</option>
+      <option value="ready">Ready</option>
+      <option value="loaded">Loaded</option>
+      <option value="legacy">Legacy</option>
     </select>
   </div>
 
@@ -475,12 +504,17 @@
     <table>
       <thead>
         <tr>
-          <th class="col-name" data-sort="full_name">Name <span class="sort-arrow" id="sort-full_name"></span></th>
-          <th class="col-company" data-sort="company_name">Company <span class="sort-arrow" id="sort-company_name"></span></th>
-          <th class="col-title" data-sort="title">Title <span class="sort-arrow" id="sort-title"></span></th>
-          <th class="col-status" data-sort="lead_status">Status <span class="sort-arrow" id="sort-lead_status"></span></th>
-          <th class="col-reply">Reply Preview</th>
-          <th class="col-date" data-sort="created_at">Date <span class="sort-arrow" id="sort-created_at" class="desc"></span></th>
+          <th class="col-client" data-sort="client">Client <span class="sort-arrow" id="sort-client"></span></th>
+          <th class="col-segment" data-sort="industry_segment">Segment <span class="sort-arrow" id="sort-industry_segment"></span></th>
+          <th class="col-persona" data-sort="persona">Persona <span class="sort-arrow" id="sort-persona"></span></th>
+          <th class="col-contacts" data-sort="contacts_total">Contacts <span class="sort-arrow" id="sort-contacts_total"></span></th>
+          <th class="col-ineb" data-sort="actual_imported_count">In EB <span class="sort-arrow" id="sort-actual_imported_count"></span></th>
+          <th class="col-coverage" data-sort="coverage_pct">Coverage <span class="sort-arrow" id="sort-coverage_pct"></span></th>
+          <th class="col-source" data-sort="source_type">Source <span class="sort-arrow" id="sort-source_type"></span></th>
+          <th class="col-clay">Clay</th>
+          <th class="col-campaign" data-sort="campaign_allocation">Campaign <span class="sort-arrow" id="sort-campaign_allocation"></span></th>
+          <th class="col-status" data-sort="scrape_status">Status <span class="sort-arrow" id="sort-scrape_status"></span></th>
+          <th class="col-updated" data-sort="updated_at">Updated <span class="sort-arrow" id="sort-updated_at"></span></th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
@@ -492,14 +526,14 @@
         <button class="btn btn-secondary btn-sm" id="nextBtn" onclick="nextPage()">Next</button>
       </div>
     </div>
-    <div class="empty-state" id="emptyState" style="display:none;">No replies match your filters.</div>
+    <div class="empty-state" id="emptyState" style="display:none;">No list segments match your filters.</div>
   </div>
 
   <!-- Detail Panel -->
   <div class="panel-overlay" id="panelOverlay"></div>
   <div class="detail-panel" id="detailPanel">
     <div class="panel-header">
-      <span style="font-size:14px;font-weight:600;">Reply Details</span>
+      <span style="font-size:14px;font-weight:600;">Segment Details</span>
       <button class="panel-close" onclick="closePanel()">&times;</button>
     </div>
     <div class="panel-body">
@@ -509,51 +543,87 @@
       </div>
 
       <div class="panel-section">
-        <div class="panel-section-title">Contact</div>
-        <div class="panel-links">
-          <a class="panel-link" id="panelEmail" href="#"><span class="panel-link-label">Email</span><span id="panelEmailText"></span></a>
-          <a class="panel-link" id="panelPhone" href="#" style="display:none"><span class="panel-link-label">Phone</span><span id="panelPhoneText"></span></a>
-          <a class="panel-link" id="panelLinkedIn" href="#" target="_blank" style="display:none"><span class="panel-link-label">LinkedIn</span><span>View Profile</span></a>
+        <div class="panel-section-title">Metrics</div>
+        <div class="panel-grid">
+          <div class="panel-stat">
+            <div class="panel-stat-label">TAM (Contacts)</div>
+            <div class="panel-stat-value" id="panelTAM">-</div>
+          </div>
+          <div class="panel-stat">
+            <div class="panel-stat-label">In EmailBison</div>
+            <div class="panel-stat-value" id="panelInEB">-</div>
+          </div>
+          <div class="panel-stat">
+            <div class="panel-stat-label">Coverage</div>
+            <div class="panel-stat-value" id="panelCoverage">-</div>
+          </div>
+          <div class="panel-stat">
+            <div class="panel-stat-label">Domains</div>
+            <div class="panel-stat-value" id="panelDomains">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Details</div>
+        <div class="panel-field">
+          <label>Employee Filter</label>
+          <div style="font-size:13px;color:var(--text-secondary);padding:4px 0;" id="panelEmployeeFilter">-</div>
+        </div>
+        <div class="panel-field">
+          <label>Source</label>
+          <div style="font-size:13px;color:var(--text-secondary);padding:4px 0;" id="panelSource">-</div>
+        </div>
+        <div class="panel-field">
+          <label>Campaign</label>
+          <div style="font-size:13px;color:var(--text-secondary);padding:4px 0;" id="panelCampaign">-</div>
         </div>
       </div>
 
       <div class="panel-section" id="panelLinksSection">
         <div class="panel-section-title">Links</div>
         <div class="panel-links">
-          <a class="panel-link" id="panelThreadLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">Thread</span><span>EmailBison Inbox</span></a>
-          <a class="panel-link" id="panelCRMLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">CRM</span><span>Close.com</span></a>
-          <a class="panel-link" id="panelWebsite" href="#" target="_blank" style="display:none"><span class="panel-link-label">Website</span><span id="panelWebsiteText"></span></a>
+          <a class="panel-link" id="panelSheetLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">Export Sheet</span><span>Open</span></a>
+          <a class="panel-link" id="panelClayLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">Clay Table</span><span>Open</span></a>
+          <a class="panel-link" id="panelEBLink" href="#" target="_blank" style="display:none"><span class="panel-link-label">EmailBison</span><span>Open</span></a>
         </div>
       </div>
 
       <div class="panel-section">
-        <div class="panel-section-title">Reply</div>
-        <div class="panel-reply" id="panelReply"></div>
-        <div class="panel-meta" id="panelDate"></div>
+        <div class="panel-section-title">Notes</div>
+        <div class="panel-notes" id="panelNotes">-</div>
       </div>
 
-      <div class="panel-section">
+      <div class="panel-section" id="panelEditSection" style="display:none;">
+        <div class="panel-section-title">Edit</div>
         <div class="panel-field">
           <label>Status</label>
-          <select id="panelStatus">
-            <option value="interested">Interested</option>
-            <option value="won">Won</option>
-            <option value="lost">Lost</option>
+          <select id="panelEditStatus">
+            <option value="">Not set</option>
+            <option value="pending">Pending</option>
+            <option value="enriching">Enriching</option>
+            <option value="ready">Ready</option>
+            <option value="loaded">Loaded</option>
+            <option value="legacy">Legacy</option>
           </select>
         </div>
         <div class="panel-field">
-          <label>OA Notes</label>
-          <textarea id="panelOANotes" rows="3" placeholder="Internal notes..."></textarea>
+          <label>Contacts Total</label>
+          <input type="number" id="panelEditContacts" />
         </div>
         <div class="panel-field">
-          <label>Client Notes</label>
-          <textarea id="panelClientNotes" rows="3" placeholder="Client-visible notes..."></textarea>
+          <label>Actual Imported Count</label>
+          <input type="number" id="panelEditImported" />
+        </div>
+        <div class="panel-field">
+          <label>Notes</label>
+          <textarea id="panelEditNotes" rows="3"></textarea>
         </div>
       </div>
     </div>
-    <div class="panel-footer">
+    <div class="panel-footer" id="panelFooter" style="display:none;">
       <button class="btn btn-secondary" onclick="closePanel()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveReply()">Save</button>
+      <button class="btn btn-primary" onclick="saveSegment()">Save</button>
     </div>
   </div>
 
@@ -568,23 +638,23 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ─── State ───
-  let allReplies = [];
+  let allRows = [];
   let filtered = [];
   let currentPage = 0;
   const PAGE_SIZE = 50;
-  let sortCol = 'created_at';
-  let sortDir = 'desc';
+  let sortCol = 'client';
+  let sortDir = 'asc';
+  let sourceFilter = 'all';
   let statusFilter = 'all';
   let searchQuery = '';
   let clientFilter = 'all';
-  let dateFilter = 'all';
   let selectedId = null;
   let isAuthenticated = false;
 
   // ─── Init ───
   async function init() {
     await checkSession();
-    await loadReplies();
+    await loadData();
     initEventListeners();
   }
 
@@ -601,7 +671,7 @@
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) { showToast('Login failed: ' + error.message, true); return; }
     setLoggedIn(data.user.email);
-    await loadReplies();
+    await loadData();
   }
 
   function setLoggedIn(email) {
@@ -621,31 +691,34 @@
   }
 
   // ─── Data ───
-  async function loadReplies() {
+  async function loadData() {
     const { data, error } = await sb
-      .from('positive_replies')
+      .from('list_matrix')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('client', { ascending: true });
 
     if (error) { showToast('Failed to load: ' + error.message, true); return; }
-    allReplies = data || [];
+    allRows = data || [];
+    populateClientFilter();
     applyFilters();
+  }
+
+  function populateClientFilter() {
+    const clients = [...new Set(allRows.map(r => r.client).filter(Boolean))].sort();
+    const sel = document.getElementById('clientFilter');
+    sel.innerHTML = '<option value="all">All Clients</option>' +
+      clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   }
 
   // ─── Filtering ───
   function applyFilters() {
-    const now = new Date();
-    filtered = allReplies.filter(r => {
-      if (statusFilter !== 'all' && r.lead_status !== statusFilter) return false;
-      if (clientFilter !== 'all' && r.client_id !== clientFilter) return false;
-      if (dateFilter !== 'all') {
-        const days = parseInt(dateFilter);
-        const cutoff = new Date(now.getTime() - days * 86400000);
-        if (new Date(r.created_at) < cutoff) return false;
-      }
+    filtered = allRows.filter(r => {
+      if (sourceFilter !== 'all' && r.source_type !== sourceFilter) return false;
+      if (statusFilter !== 'all' && r.scrape_status !== statusFilter) return false;
+      if (clientFilter !== 'all' && r.client !== clientFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const searchable = [r.full_name, r.company_name, r.email, r.title, r.reply_text]
+        const searchable = [r.client, r.industry_segment, r.persona, r.list_name, r.campaign_allocation, r.notes]
           .filter(Boolean).join(' ').toLowerCase();
         if (!searchable.includes(q)) return false;
       }
@@ -659,14 +732,17 @@
 
   function sortFiltered() {
     filtered.sort((a, b) => {
-      let va = a[sortCol] || '';
-      let vb = b[sortCol] || '';
-      if (sortCol === 'created_at') {
+      let va = a[sortCol];
+      let vb = b[sortCol];
+      if (sortCol === 'contacts_total' || sortCol === 'actual_imported_count' || sortCol === 'coverage_pct') {
+        va = va || 0;
+        vb = vb || 0;
+      } else if (sortCol === 'updated_at') {
         va = new Date(va || 0).getTime();
         vb = new Date(vb || 0).getTime();
       } else {
-        va = String(va).toLowerCase();
-        vb = String(vb).toLowerCase();
+        va = String(va || '').toLowerCase();
+        vb = String(vb || '').toLowerCase();
       }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
@@ -692,12 +768,17 @@
 
     tbody.innerHTML = page.map(r => `
       <tr onclick="openPanel('${r.id}')" class="${r.id === selectedId ? 'selected' : ''}">
-        <td class="col-name">${esc(r.full_name || '-')}</td>
-        <td class="col-company">${esc(r.company_name || '-')}</td>
-        <td class="col-title">${esc(r.title || '-')}</td>
-        <td class="col-status"><span class="status-badge status-${r.lead_status}">${r.lead_status || '-'}</span></td>
-        <td class="col-reply">${esc(truncate(r.reply_text, 80))}</td>
-        <td class="col-date">${fmtDate(r.created_at)}</td>
+        <td class="col-client">${esc(r.client || '-')}</td>
+        <td class="col-segment">${esc(r.industry_segment || '-')}</td>
+        <td class="col-persona">${esc(truncate(r.persona, 30))}</td>
+        <td class="col-contacts">${fmtNum(r.contacts_total)}</td>
+        <td class="col-ineb">${fmtNum(r.actual_imported_count)}</td>
+        <td class="col-coverage">${coverageBadge(r.coverage_pct)}</td>
+        <td class="col-source">${sourceBadge(r.source_type)}</td>
+        <td class="col-clay">${r.imported_into_clay ? '<span class="check">\u2713</span>' : '<span class="dash">\u2014</span>'}</td>
+        <td class="col-campaign">${esc(truncate(r.campaign_allocation, 30))}</td>
+        <td class="col-status">${statusBadge(r.scrape_status)}</td>
+        <td class="col-updated">${fmtDate(r.updated_at)}</td>
       </tr>
     `).join('');
 
@@ -707,88 +788,98 @@
     document.getElementById('prevBtn').disabled = currentPage === 0;
     document.getElementById('nextBtn').disabled = currentPage >= totalPages - 1;
 
-    // Update sort arrows
     document.querySelectorAll('.sort-arrow').forEach(el => el.className = 'sort-arrow');
     const arrow = document.getElementById('sort-' + sortCol);
     if (arrow) arrow.className = 'sort-arrow ' + sortDir;
   }
 
   function renderStats() {
-    const total = filtered.length;
-    const interested = filtered.filter(r => r.lead_status === 'interested').length;
-    const won = filtered.filter(r => r.lead_status === 'won').length;
-    const lost = filtered.filter(r => r.lead_status === 'lost').length;
-    document.getElementById('statTotal').textContent = total;
-    document.getElementById('statInterested').textContent = interested;
-    document.getElementById('statWon').textContent = won;
-    document.getElementById('statLost').textContent = lost;
+    const nonLegacy = filtered.filter(r => r.scrape_status !== 'legacy');
+    document.getElementById('statSegments').textContent = nonLegacy.length;
+    document.getElementById('statContacts').textContent = fmtNum(nonLegacy.reduce((s, r) => s + (r.contacts_total || 0), 0));
+    document.getElementById('statInEB').textContent = fmtNum(nonLegacy.reduce((s, r) => s + (r.actual_imported_count || 0), 0));
+    document.getElementById('statClients').textContent = new Set(nonLegacy.map(r => r.client).filter(Boolean)).size;
+  }
+
+  // ─── Badges ───
+  function coverageBadge(pct) {
+    if (pct == null) return '<span class="badge badge-gray">-</span>';
+    let cls = 'badge-green';
+    if (pct < 10) cls = 'badge-red';
+    else if (pct > 200) cls = 'badge-red';
+    else if (pct < 50) cls = 'badge-yellow';
+    return `<span class="badge ${cls}">${pct.toFixed(0)}%</span>`;
+  }
+
+  function sourceBadge(src) {
+    if (!src) return '<span class="badge badge-gray">-</span>';
+    const colors = { aiark: 'badge-blue', apollo: 'badge-gray', clay: 'badge-green', manual: 'badge-yellow' };
+    return `<span class="badge ${colors[src] || 'badge-gray'}">${src}</span>`;
+  }
+
+  function statusBadge(status) {
+    if (!status) return '<span class="badge badge-gray">-</span>';
+    const colors = { pending: 'badge-yellow', enriching: 'badge-blue', ready: 'badge-green', loaded: 'badge-green', legacy: 'badge-gray' };
+    return `<span class="badge ${colors[status] || 'badge-gray'}">${status}</span>`;
   }
 
   // ─── Panel ───
   function openPanel(id) {
-    const reply = allReplies.find(r => r.id === id);
-    if (!reply) return;
+    const row = allRows.find(r => r.id === id);
+    if (!row) return;
     selectedId = id;
 
-    document.getElementById('panelName').textContent = reply.full_name || 'Unknown';
+    document.getElementById('panelName').textContent = row.list_name || row.industry_segment || 'Unnamed';
     document.getElementById('panelSubtitle').textContent =
-      [reply.title, reply.company_name].filter(Boolean).join(' at ');
+      [row.client, row.persona].filter(Boolean).join(' \u2014 ');
 
-    // Contact links
-    const emailEl = document.getElementById('panelEmail');
-    const emailText = document.getElementById('panelEmailText');
-    emailText.textContent = reply.email || '-';
-    emailEl.href = reply.email ? 'mailto:' + reply.email : '#';
+    document.getElementById('panelTAM').textContent = fmtNum(row.contacts_total);
+    document.getElementById('panelInEB').textContent = fmtNum(row.actual_imported_count);
+    document.getElementById('panelCoverage').innerHTML = coverageBadge(row.coverage_pct);
+    document.getElementById('panelDomains').textContent = row.domain_count != null ? fmtNum(row.domain_count) : '-';
 
-    const phoneEl = document.getElementById('panelPhone');
-    const phoneText = document.getElementById('panelPhoneText');
-    if (reply.phone) {
-      phoneText.textContent = reply.phone;
-      phoneEl.href = 'tel:' + reply.phone;
-      phoneEl.style.display = 'flex';
-    } else { phoneEl.style.display = 'none'; }
+    document.getElementById('panelEmployeeFilter').textContent = row.employee_filter || '-';
+    document.getElementById('panelSource').textContent = row.source_type || '-';
+    document.getElementById('panelCampaign').textContent = row.campaign_allocation || '-';
 
-    const liEl = document.getElementById('panelLinkedIn');
-    if (reply.linkedin_url) {
-      liEl.href = reply.linkedin_url;
-      liEl.style.display = 'flex';
-    } else { liEl.style.display = 'none'; }
+    // Links
+    const sheetEl = document.getElementById('panelSheetLink');
+    if (row.raw_export_sheet_url) {
+      sheetEl.href = row.raw_export_sheet_url;
+      sheetEl.style.display = 'flex';
+    } else { sheetEl.style.display = 'none'; }
 
-    // External links
-    const threadEl = document.getElementById('panelThreadLink');
-    if (reply.email_thread_link) {
-      threadEl.href = reply.email_thread_link;
-      threadEl.style.display = 'flex';
-    } else { threadEl.style.display = 'none'; }
+    const clayEl = document.getElementById('panelClayLink');
+    if (row.clay_table_url) {
+      clayEl.href = row.clay_table_url;
+      clayEl.style.display = 'flex';
+    } else { clayEl.style.display = 'none'; }
 
-    const crmEl = document.getElementById('panelCRMLink');
-    if (reply.close_crm_link) {
-      crmEl.href = reply.close_crm_link;
-      crmEl.style.display = 'flex';
-    } else { crmEl.style.display = 'none'; }
+    const ebEl = document.getElementById('panelEBLink');
+    if (row.emailbison_campaign_url) {
+      ebEl.href = row.emailbison_campaign_url;
+      ebEl.style.display = 'flex';
+    } else { ebEl.style.display = 'none'; }
 
-    const webEl = document.getElementById('panelWebsite');
-    const webText = document.getElementById('panelWebsiteText');
-    if (reply.company_website) {
-      webText.textContent = reply.company_website;
-      webEl.href = reply.company_website.startsWith('http') ? reply.company_website : 'https://' + reply.company_website;
-      webEl.style.display = 'flex';
-    } else { webEl.style.display = 'none'; }
+    // Notes
+    document.getElementById('panelNotes').textContent = row.notes || '(no notes)';
 
-    // Reply text
-    document.getElementById('panelReply').textContent = reply.reply_text || '(no reply text)';
-    document.getElementById('panelDate').textContent = reply.created_at
-      ? 'Received ' + new Date(reply.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-      : '';
-
-    // Editable fields
-    document.getElementById('panelStatus').value = reply.lead_status || 'interested';
-    document.getElementById('panelOANotes').value = reply.oa_notes || '';
-    document.getElementById('panelClientNotes').value = reply.client_notes || '';
+    // Edit section
+    if (isAuthenticated) {
+      document.getElementById('panelEditSection').style.display = 'block';
+      document.getElementById('panelFooter').style.display = 'flex';
+      document.getElementById('panelEditStatus').value = row.scrape_status || '';
+      document.getElementById('panelEditContacts').value = row.contacts_total || '';
+      document.getElementById('panelEditImported').value = row.actual_imported_count || '';
+      document.getElementById('panelEditNotes').value = row.notes || '';
+    } else {
+      document.getElementById('panelEditSection').style.display = 'none';
+      document.getElementById('panelFooter').style.display = 'none';
+    }
 
     document.getElementById('panelOverlay').classList.add('open');
     document.getElementById('detailPanel').classList.add('open');
-    renderTable(); // highlight selected row
+    renderTable();
   }
 
   function closePanel() {
@@ -798,23 +889,28 @@
     renderTable();
   }
 
-  async function saveReply() {
+  async function saveSegment() {
     if (!isAuthenticated) { showToast('Sign in to save', true); return; }
     if (!selectedId) return;
 
+    const contacts = parseInt(document.getElementById('panelEditContacts').value) || null;
+    const imported = parseInt(document.getElementById('panelEditImported').value) || null;
+    const covPct = (contacts && imported) ? parseFloat(((imported / contacts) * 100).toFixed(1)) : null;
+
     const payload = {
-      lead_status: document.getElementById('panelStatus').value,
-      oa_notes: document.getElementById('panelOANotes').value.trim() || null,
-      client_notes: document.getElementById('panelClientNotes').value.trim() || null,
+      scrape_status: document.getElementById('panelEditStatus').value || null,
+      contacts_total: contacts,
+      actual_imported_count: imported,
+      coverage_pct: covPct,
+      notes: document.getElementById('panelEditNotes').value.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await sb.from('positive_replies').update(payload).eq('id', selectedId);
+    const { error } = await sb.from('list_matrix').update(payload).eq('id', selectedId);
     if (error) { showToast('Save failed: ' + error.message, true); return; }
 
-    // Update local state
-    const reply = allReplies.find(r => r.id === selectedId);
-    if (reply) Object.assign(reply, payload);
+    const row = allRows.find(r => r.id === selectedId);
+    if (row) Object.assign(row, payload);
 
     showToast('Saved');
     applyFilters();
@@ -838,7 +934,6 @@
 
   // ─── Event Listeners ───
   function initEventListeners() {
-    // Search
     let debounce;
     document.getElementById('searchBox').addEventListener('input', (e) => {
       clearTimeout(debounce);
@@ -848,12 +943,12 @@
       }, 250);
     });
 
-    // Status pills
-    document.querySelectorAll('.filter-pill[data-filter="status"]').forEach(pill => {
+    // Source pills
+    document.querySelectorAll('.filter-pill[data-filter="source"]').forEach(pill => {
       pill.addEventListener('click', () => {
-        document.querySelectorAll('.filter-pill[data-filter="status"]').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.filter-pill[data-filter="source"]').forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
-        statusFilter = pill.dataset.value;
+        sourceFilter = pill.dataset.value;
         applyFilters();
       });
     });
@@ -864,9 +959,9 @@
       applyFilters();
     });
 
-    // Date dropdown
-    document.getElementById('dateFilter').addEventListener('change', (e) => {
-      dateFilter = e.target.value;
+    // Status dropdown
+    document.getElementById('statusFilter').addEventListener('change', (e) => {
+      statusFilter = e.target.value;
       applyFilters();
     });
 
@@ -878,17 +973,14 @@
           sortDir = sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           sortCol = col;
-          sortDir = col === 'created_at' ? 'desc' : 'asc';
+          sortDir = (col === 'contacts_total' || col === 'actual_imported_count' || col === 'coverage_pct' || col === 'updated_at') ? 'desc' : 'asc';
         }
         sortFiltered();
         renderTable();
       });
     });
 
-    // Panel overlay click to close
     document.getElementById('panelOverlay').addEventListener('click', closePanel);
-
-    // Escape key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closePanel();
     });
@@ -902,9 +994,11 @@
   }
   function truncate(s, len) {
     if (!s) return '-';
-    // Strip HTML-ish content and collapse whitespace
-    const clean = s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    return clean.length > len ? clean.substring(0, len) + '\u2026' : clean;
+    return s.length > len ? s.substring(0, len) + '\u2026' : s;
+  }
+  function fmtNum(n) {
+    if (n == null) return '-';
+    return n.toLocaleString();
   }
   function fmtDate(d) {
     if (!d) return '-';
